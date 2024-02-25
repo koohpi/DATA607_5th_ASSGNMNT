@@ -1,0 +1,252 @@
+---
+title: "DATA607 5th Week Assignment"
+author: "Koohyar Pooladvand"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Assignment – Tidying and Transforming Data
+
+The goal of this week’s assignment is to work with data structures and utilize tidyverse and dplyr for data manipulation. We will focus on both wide and tall tables, practicing the transformation of data from one format to another.
+
+The assignment comprises Three sections, and this R-Markdown document mirrors the same structure, introducing sub-titles for each part of the assignment.
+
+### Code Initiation
+
+```{r, Code_initialization, echo=FALSE}
+required_packages <- c("RSQLite","devtools","tidyverse","DBI","dplyr","odbc","openintro","ggplot2","psych","reshape2","knitr","markdown","shiny","R.rsp","fivethirtyeight","RCurl", "stringr","readr","glue","data.table", "hflights") # Specify packages
+
+not_installed <- required_packages[!(required_packages %in% installed.packages()[ , "Package"])]# Extract not installed packages
+if(length(not_installed)==0){
+  print("All required packages are installed")
+} else {
+  print(paste(length(not_installed), "package(s) had to be installed.")) # print the list of packages that need to be isstall
+  install.packages(not_installed)
+}
+```
+
+## #1 Section: Creation of a wide database
+
+The goal is to create a **.CSV file** (or optionally, a **MySQL database**) that includes all the information displayed in the following format. I’ve already created a CSV file named **Airlines.csv**, stored in the **/Data** folder. Our objective is to create a **“wide” structure**, similar to how the information is presented below. This way, we can practice tidying and transformations, as described in the subsequent sections
+
+![Wide structure sample](images/wide_database.png)
+
+```{r laod_data, echo=FALSE}
+library(hflights)
+library(tidyverse)
+
+# Initialize Long_DF with the correct number of rows
+Long_DF <- data.frame(
+  UniqueCarrier = character(0),
+  Dest = character(0),
+  Delayed = numeric(0),
+  On_time = numeric(0)
+)
+
+
+```
+
+## #2: Data Transformation
+
+We read the data from the file and then change the wide to long format. I will use tidyr and dplyr as needed to tidy and transform the data.
+
+```{r tidy_transform,  echo = TRUE}
+
+# first we read the data, 
+# data will be read from local, or GitHub 
+
+
+# I wanted to create a function that takes an address as input. The function should first try to load the file from a local location. If that fails, it should then attempt to load the file from an assumed web address. Finally, if both attempts are unsuccessful, the function should prompt the operator to choose a file manually from their local computer. 
+
+load_file_KP <- function(file_name) {
+  # Attempt to load the file
+  file_data <- tryCatch({
+    # Try to read from a local file
+    if (file.exists(file_name)) {
+      # Read the local file
+      con <- file(file_name, "r")
+      df <- read.csv(con,  check.names = FALSE,
+                     na.strings = "", dec = ".", quote = "\"")
+      #lines <- readLines(con, encoding = "unknown")
+      close(con)
+      return(list(data = df, message = "File loaded successfully,", method = "Local"))
+    } else {
+      # Attempt to read from a URL
+      web_file <- tryCatch({
+        read.csv(file_name,  check.names = FALSE,
+                     na.strings = "", dec = ".", quote = "\"")
+        #readLines(file_name)
+      }, error = function(e) {
+        NULL  # Return NULL to indicate failure
+      })
+      if (!is.null(web_file)) {
+        return(list(data = web_file, message = "File loaded successfully, ", method = "Web"))
+      }
+    }
+    NULL  # Return NULL to indicate failure
+  }, error = function(e) {
+    NULL  # Return NULL to indicate failure
+  })
+  
+  # If loading the file was not successful, prompt the operator to select a file manually
+  if (is.null(file_data)) {
+    file_path <- file.choose()  # Prompt to choose a file
+    # Read the file if a file path was selected
+    if (file_path != "") {
+      manual_file <- tryCatch({
+        read.csv(file_path, check.names = FALSE,
+                     na.strings = "", dec = ".", quote = "\"")
+        #readLines(file_path)
+      }, error = function(e) {
+        NULL  # Return NULL to indicate failure
+      })
+      if (!is.null(manual_file)) {
+        return(list(data = manual_file, message = "Manual file loaded successfully, ", method = "Manual"))
+      }
+    } else {
+      stop("No file selected. Exiting.")  # Stop execution if no file was selected
+    }
+  }
+  
+  # Return the file data
+  return(file_data)
+}
+
+#read the data into RStudio from DATA folder  
+
+#test written function 
+#local file
+file_name_1 <- "Data/AirLines.csv"
+result <- load_file_KP(file_name_1)
+
+df <- read.csv("Data/Airlines.csv", na.strings = "", dec = ".", quote = "\"", check.names = FALSE)
+
+
+#KP_DF <- result$data #pass loaded data 
+
+KP_DF <- df #pass loaded data 
+# Print the result
+
+paste(result$message, "using", result$method, "method.", sep = " ") #use past 
+
+cat("\n", "Here is the head of the laoded data:", "\n")
+#glimpse(KP_DF)
+head(KP_DF)
+
+```
+
+### #2: Changing the wide to long
+
+Now that the data is loaded, let’s use **`dplyr`** to transform the format from wide to long.
+
+**`tidyr`** offers various functionalities, including reshaping data using **`pivot_longer`** and **`pivot_wider`**. It also provides functions for handling missing values (NA), either by removing them or replacing them. You can find a helpful [tidyr cheatsheet](https://rstudio.github.io/cheatsheets/tidyr.pdf) by clicking on the link .
+
+First, I’ll tidy the data. Upon examining it, I noticed some NA values that need removal, as well as an empty column that should be populated with the names of the airlines. Finally, we’ll pivot the data to create a long-format database.
+
+In the following code, I utilize **`tidyr`** to create a long format using **`filter`**, **`select`**, **`pivot_longer`**, and **`cbind`**. The resulting data will be stored in **`KP_DF_Long`**.
+
+```{r tidyr_working, echo=TRUE}
+
+library(dplyr)
+library(tidyverse)
+#let's change the datafarme to tibble
+colnames(KP_DF)[1:2] <- c("Airlines", "Status")
+head(KP_DF)
+
+KP_DF_T<- as_tibble(KP_DF)
+
+# remove na using drop_na
+KP_DF_T <- KP_DF_T %>% 
+  drop_na( `Los Angeles`)
+
+# use fill to repalce the missign value 
+KP_DF_T<- KP_DF_T %>% 
+  fill( Airlines, .direction = "down")
+
+#change the column that are not numeric to nuemric 
+KP_DF_T$Phoenix <- as.integer(gsub(",", "",KP_DF_T$Phoenix)) # change the character to integer 
+KP_DF_T$Seattle <- as.integer(gsub(",", "",KP_DF_T$Seattle))
+
+print("Here is how clean data looks like")
+KP_DF_T
+
+#I will use pivot_longer to change the data, in this case we want to change the staus to delayed and on_time and we want to chaneg the names to Dest, and chaneg the table to a 4- column table with UniqueCarrier, Dest, Delayed, On_time. 
+
+#filter based on Staus Delayed to chose only the delayed flight, and put them on a column called Dest and Delayed
+KP_DF_Long <- KP_DF_T %>% filter(Status == "delayed") %>%
+  pivot_longer(cols = 3:ncol(KP_DF_T), names_to = "Dest", values_to = "Delayed", values_drop_na = FALSE)
+
+#filter based on Staus On_time to choose only the On time flights, and put them on a column called Dest and On_time
+KP_DF_Long <- KP_DF_T %>% filter(Status == "on time") %>%
+  pivot_longer(cols = 3:ncol(KP_DF_T), names_to = "Dest", values_to = "On_time", values_drop_na = FALSE) %>%
+  select(On_time) %>% cbind(KP_DF_Long)
+
+#slect only the important column and add the On_time to the last column 
+KP_DF_Long <- KP_DF_Long %>%
+  select(Airlines,Dest, Delayed, On_time)
+print("Here is the Long version of the data")
+head(KP_DF_Long ,10 )
+```
+
+## #3: Analyses using dplyr
+
+We will use dplyr to perform analysis to compare the arrival delays for the two airlines, and do some more analyses.
+
+```{r analyses, echo=TRUE}
+
+# lets comapre which air line has the most delayed on the destination, we need to find the max delay among all and find the associated Airlines 
+
+print("Airline with the highest Delayed") 
+KP_DF_Long %>%
+  filter(Delayed == max(Delayed)) %>%
+  slice_max(order_by = Delayed, n = 1) %>%
+  select(Airlines,Dest, Delayed)
+
+# which destination and Airlines with the highest On_time 
+print("Airline with the highest On_time") 
+KP_DF_Long %>%
+  filter(On_time == max(On_time)) %>%
+  slice_max(order_by = On_time, n = 1) %>%
+  select(Airlines,Dest, On_time)
+  
+#fidnd the Airlines that has the most sum of on_time for all destiantion and the one that has the most delayed for among the destination 
+
+print("Airlines with the maximum sum of delayed flights over the destinations")
+
+KP_DF_Long %>%
+  group_by(Airlines) %>%
+  summarize(
+    max_delayed_all = sum(Delayed)
+  )
+
+print("Airlines with the maximum sum of On_time fligth over the destinations")
+
+KP_DF_Long %>%
+  group_by(Airlines) %>%
+  summarize(
+    max_ontime_all = sum(On_time)
+  )
+
+# Fidn the destination that has the heighest and lowest On_time and delayed. 
+
+print("Destination with the maximum sum of delayed flights over the Airlines")
+
+KP_DF_Long %>%
+  group_by(Dest) %>%
+  summarize(
+    max_delayed_all = sum(Delayed)
+  )
+
+print("Destination with the maximum sum of On_time fligths over the Airlines")
+
+KP_DF_Long %>%
+  group_by(Dest) %>%
+  summarize(
+    max_OnTime_all = sum(On_time)
+  )
+
+```
