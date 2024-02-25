@@ -467,8 +467,11 @@ load_file_KP &lt;- function(file_name) {
 #local file
 file_name_1 &lt;- &quot;Data/AirLines.csv&quot;
 result &lt;- load_file_KP(file_name_1)
+file_name_2 &lt;- &quot;https://raw.githubusercontent.com/koohpi/DATA607_5th_ASSGNMNT/main/Data/Airlines.csv&quot;
 
-df &lt;- read.csv(&quot;Data/Airlines.csv&quot;, na.strings = &quot;&quot;, dec = &quot;.&quot;, quote = &quot;\&quot;&quot;, check.names = FALSE)
+#df &lt;- read.csv(&quot;Data/Airlines.csv&quot;, na.strings = &quot;&quot;, dec = &quot;.&quot;, quote = &quot;\&quot;&quot;, #check.names = FALSE)
+df &lt;- read.csv(file_name_2, na.strings = &quot;&quot;, dec = &quot;.&quot;, quote = &quot;\&quot;&quot;, check.names = FALSE)
+
 
 
 #KP_DF &lt;- result$data #pass loaded data 

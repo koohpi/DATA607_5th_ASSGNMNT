@@ -122,8 +122,11 @@ load_file_KP <- function(file_name) {
 #local file
 file_name_1 <- "Data/AirLines.csv"
 result <- load_file_KP(file_name_1)
+file_name_2 <- "https://raw.githubusercontent.com/koohpi/DATA607_5th_ASSGNMNT/main/Data/Airlines.csv"
 
-df <- read.csv("Data/Airlines.csv", na.strings = "", dec = ".", quote = "\"", check.names = FALSE)
+#df <- read.csv("Data/Airlines.csv", na.strings = "", dec = ".", quote = "\"", #check.names = FALSE)
+df <- read.csv(file_name_2, na.strings = "", dec = ".", quote = "\"", check.names = FALSE)
+
 
 
 #KP_DF <- result$data #pass loaded data 
